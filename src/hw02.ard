@@ -1,26 +1,49 @@
 \import Data.Bool
 \import Data.Or
 \import Logic
+\import hw01 (fac)
+\import lect02 (List, cons)
 
 -- 1. Определите полиморфный tail для списков
+\func tail {A : \Type} (xs : List A) : List A \elim xs
+  | List.nil => List.nil
+  | cons a xs => xs
 
 -- 2. Реализуйте любой (but choose wisely) алгоритм сортировки. Функцию сравнения можно принимать в качестве аргумента
+\func sorted {A : \Type} (xs : List A) (< : A -> A -> Bool) => insertionSort xs List.nil < \where {
+  \func insert {A : \Type} (a : A) (xs : List A) (< : A -> A -> Bool) : List A \elim xs
+    | List.nil => cons a List.nil
+    | cons x xs => \case a `<` x \with {
+      | true => cons a (cons x xs)
+      | false => cons x (insert a xs <)
+    }
+  \func insertionSort {A : \Type} (xs ys : List A) (< : A -> A -> Bool) : List A \elim xs
+    | List.nil => ys
+    | cons a xs => insertionSort xs (insert a ys <) <
+}
 
 -- 3. Докажите ассоциативность && и ||
 
-\func &&-assoc (x y z : Bool) : (x and y) and z = x and (y and z) => {?}
+\func &&-assoc (x y z : Bool) : (x and y) and z = x and (y and z) \elim x
+  | true => idp
+  | false => idp
 
-\func ||-assoc (x y z : Bool) : (x or y) or z = x or (y or z) => {?}
+\func ||-assoc (x y z : Bool) : (x or y) or z = x or (y or z) \elim x
+  | true => idp
+  | false => idp
 
 -- 4. Докажите, что fac 3 равно 6
+\func task4 : fac 3 = 6 => idp
 
 -- 5. Докажите следующие пропозициональные тавтологии (можно решить любые 2 из 3 задач)
 
 -- t1 : (P and Q -> R) -> P -> Q -> R
-\func t1 {P Q R : \Type} (f : \Sigma P Q -> R) (p : P) (q : Q) : R => {?}
+\func t1 {P Q R : \Type} (f : \Sigma P Q -> R) (p : P) (q : Q) : R => f (p, q)
 
 -- t2 : (P -> R) -> (Q -> R) -> P or Q -> R
-\func t2 {P Q R : \Type} (f : P -> R) (g : Q -> R) (h : Or P Q) : R => {?}
+\func t2 {P Q R : \Type} (f : P -> R) (g : Q -> R) (h : Or P Q) : R \elim h
+  | inl p => f p
+  | inr q => g q
 
 -- t3 : ((P -> Q -> R) -> P) -> (P -> R) -> R
 \func t3 {P Q R : \Type} (f : (P -> Q -> R) -> P) (g : P -> R) : R => {?}
@@ -28,20 +51,34 @@
 -- 6. Сформулируйте и докажите следующие пропозициональные тавтологии (можно решить любые 2 из 3 задач)
 
 -- t4 : (P -> Q -> R) -> P /\ Q -> R
+\func t4 {P Q R : \Type} (f : P -> Q -> R) (g : \Sigma P Q) : R => f g.1 g.2
 -- t5 : (P or Q -> P /\ Q) -> (P -> Q) /\ (Q -> P)
+\func t5 {P Q : \Type} (f : Or P Q -> \Sigma P Q) : \Sigma (P -> Q) (Q -> P) =>
+  (
+    \lam (p : P) => (f (inl p)).2
+  ,
+    \lam (q : Q) => (f (inr q)).1
+  )
 -- t6 : ((((P -> Q) -> P) -> P) -> Q) -> Q
 
 -- 7. Докажите следующие утверждения
 
 -- s1 : Если для любого x : Nat верно P(x), то существует x : Nat для которого P(x) верно
-\func s1 (P : Nat -> \Type) (h : \Pi (x : Nat) -> P x) : \Sigma (x : Nat) (P x) => {?}
+\func s1 (P : Nat -> \Type) (h : \Pi (x : Nat) -> P x) : \Sigma (x : Nat) (P x) => (1, h 1)
 
 -- s2 : Если не существует x : Nat такого, что верно P(x), то P(3) не верно
-\func s2 (P : Nat -> \Type) (h : \Sigma (x : Nat) (P x) -> Empty) : P 3 -> Empty => {?}
+\func s2 (P : Nat -> \Type) (h : \Sigma (x : Nat) (P x) -> Empty) : P 3 -> Empty => \lam (p : P 3) => h (3, p)
 
 -- 8. Сформулируйте и докажите следующие утверждения
 
 -- s3 : Если для всех x : Nat верно, что P(x) влечет Q(x), и существует x : Nat для которого верно P(x),
 -- то существует x : Nat для которого верно Q(x)
+\func s3 (P Q : Nat -> \Type) (h : \Pi (x : Nat) -> P x -> Q x) (j : \Sigma (x : Nat) (P x)) : \Sigma (x : Nat) (Q x) =>
+  (j.1, h j.1 j.2)
 
 -- s4 : Если для всех x : Nat либо не верно P(x), либо не верно Q(x), то P(3) влечет, что Q(3) не верно
+\func s4 (P Q : Nat -> \Type) (h : \Pi (x : Nat) -> Or (P x -> Empty) (Q x -> Empty)) : P 3 -> Q 3 -> Empty =>
+  \lam (p3 : P 3) => \case h 3 \with {
+    | inr nq => nq
+    | inl a => \lam _ => a p3
+  }
