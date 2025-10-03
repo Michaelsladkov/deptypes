@@ -1,15 +1,21 @@
 \import Data.List
+\import Meta
 \import Paths
+\import Paths.Meta
 \import lect03
 \open Nat(+, *)
 
 -- 1. Чему равно fileTest (в нормальной форме)? Докажите это
+\func t1 : fileTest = (17, 8, 13, 55, 18, 21) => idp
 
 -- 2. Чему равно M5.t''' (в нормальной форме)? Докажите это
+\func t2 : M5.t''' = ((82, 42, 61, 82, 34, 42, 61, 29), 25, (42, 29)) => idp
 
 -- 3. Докажите ассоциативность ++
 
-\func ++-assoc {A : \Type} (xs ys zs : List A) : (xs ++ ys) ++ zs = xs ++ (ys ++ zs) => {?}
+\func ++-assoc {A : \Type} (xs ys zs : List A) : (xs ++ ys) ++ zs = xs ++ (ys ++ zs) \elim xs
+  | List.nil => idp
+  | :: x xs => pmap (x ::) (++-assoc _ _ _)
 
 
 \func sum (xs : List Nat) : Nat
@@ -23,13 +29,40 @@
   | :: x xs => reverse xs ++ x :: nil
 
 -- Это утверждение будет полезно для доказательства
-\func sum++ (xs ys : List Nat) : sum (xs ++ ys) = sum xs + sum ys => {?}
 
-\func sum-reverse (xs : List Nat) : sum (reverse xs) = sum xs => {?}
+\func sum++ (xs ys : List Nat) : sum (xs ++ ys) = sum xs + sum ys \elim xs, ys
+  | nil, nil => idp
+  | nil, y :: ys => idp
+  | x :: xs, nil => pmap (x +) (pmap sum ++_nil)
+  | x :: xs, ys => pmap (x +) (sum++ xs ys) *> inv (+-assoc x (sum xs) (sum ys))
+
+\func sum-reverse (xs : List Nat) : sum (reverse xs) = sum xs \elim xs
+  | nil => idp
+  | x :: xs => \have
+  | p1 : sum (reverse xs ++ x :: nil) = sum (reverse xs) + sum (x :: nil) => sum++ (reverse xs) (x :: nil)
+  | p2 : sum (reverse xs) + sum (x :: nil) = sum (reverse xs) + x => idp
+  | p3 : sum (reverse xs) + x = x + sum (reverse xs) => +-comm (sum (reverse xs)) x
+  | p4 : x + sum (reverse xs) = x + sum xs => pmap (x +) (sum-reverse xs)
+    \in p1 *> p2 *> p3 *> p4
 
 -- 5. Докажите дистрибутивность умножения над сложением для натуральных чисел
+\func comm (x y : Nat) : x * y = y * x \elim x, y
+  | 0, 0 => idp
+  | 0, suc y => comm y 0
+  | suc x, 0 => idp
+  | suc x, suc y => {?}
 
-\func rdistr (n m k : Nat) : (m + k) * n = m * n + k * n => {?}
+\func rdistr (n m k : Nat) : (m + k) * n = m * n + k * n \elim n, m, k
+  | 0, _, _ => idp
+  | suc n, 0, 0 => rdistr n 0 0
+  | suc n, 0, suc k => \have
+    | pp1 : 0 * suc n + suc k * suc n = suc k * suc n + 0 * suc n => +-comm (0 * suc n) (suc k * suc n)
+    | ppp1 : suc n * 0 = 0 => idp
+    | pp3 : suc k * suc n + 0 * suc n = suc k * suc n + 0 => {?}
+    | p1 : 0 * suc n + suc k * suc n = 0 + suc k * suc n => rewrite ppp1 (0 * suc n + suc k * suc n)
+    \in inv p1
+  | suc n, suc m, 0 => {?}
+  | suc n, suc m, suc k => {?}
 
 \func ldistr (n m k : Nat) : n * (m + k) = n * m + n * k => {?}
 
@@ -44,8 +77,8 @@
 -- repl говорит, что если у нас есть два равных типа, то у нас есть функция из одного во второй
 -- Определите repl через transport
 
-\func repl {A B : \Type} (p : A = B) (a : A) : B => {?}
+\func repl {A B : \Type} (p : A = B) (a : A) : B => transport (\lam x => x) p a
 
 -- Определите transport через repl и pmap
 
-\func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' => {?}
+\func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' => repl (pmap B p) b
