@@ -1,4 +1,7 @@
 \import Data.Bool
+\import Data.List (List, length)
+\import lect01 ($, *, +)
+\import lect02 (T)
 \import lect04
 
 -- 1. Напишите функцию at, которая принимает List A и натуральное число и возвращает элемент по заданому индексу
@@ -12,31 +15,80 @@
   | suc x, 0 => false
   | suc x, suc y => x < y
 
-\func at => {?}
+\func at {A : \Type} (xs : List A) (n : Nat) (p : T (n < length xs)) : A \elim xs, n
+  | List.nil, 0 => \case p
+  | a List.:: xs, 0 => a
+  | a List.:: xs, suc n => at xs n p
 
 -- 2. Реализуйте аналоги функции replicate для vec и Vec
 --    (эта функция создает список заданной длины, состоящий из повторений данного элемента)
 
+\func replicate-rec {A : \Type} (a : A) (n : Nat) : vec A n \elim n
+  | 0 => ()
+  | suc n => (a, replicate-rec a n)
+
+\func replicate-ind {A : \Type} (a : A) (n : Nat) : Vec A n \elim n
+  | 0 => nil
+  | suc n => cons a (replicate-ind a n)
+
 -- 3. Реализуйте аналоги функции map для vec и Vec
+
+\func map-rec {A : \Type} {B : \Type} {n : Nat} (xs : vec A n) (f : A -> B) : vec B n \elim n, xs
+  | 0, xs => ()
+  | suc n, (x, xs) => (f x, map-rec xs f)
+
+\func map-ind {A : \Type} {B : \Type} {n : Nat} (xs : Vec A n) (f : A -> B) : Vec B n \elim n, xs
+  | 0, nil => nil
+  | suc n, cons a xs => cons (f a) (map-ind xs f)
 
 -- 4. Реализуйте аналоги функции zipWith для vec и Vec
 --    Функция должна принимать вектора одинаковой длины
+
+\func zipWith-rec
+  {A : \Type} {B : \Type} {C : \Type} {n : Nat}
+  (f : A -> B -> C) (xs : vec A n) (ys : vec B n) : vec C n \elim n, xs, ys
+  | 0, xs, ys => ()
+  | suc n, (x, xs), (y, ys) => (f x y, zipWith-rec f xs ys)
+
+\func zipWith-ind
+  {A : \Type} {B : \Type} {C : \Type} {n : Nat}
+  (f : A -> B -> C) (xs : Vec A n) (ys : Vec B n) : Vec C n \elim n, xs, ys
+  | 0, nil, nil => nil
+  | suc n, cons x xs, cons y ys => cons (f x y) (zipWith-ind f xs ys)
 
 -- 5. Определите тип CTree A n полных бинарных деревьев высоты ровно n,
 --    которые хранят элементы только во внутренних узлах, но не в листьях
 --    Высота листа равна 0
 
-\data CTree (A : \Type) (n : Nat)
+\data CTree (A : \Type) (n : Nat) \elim n
+  | 0 => c-leaf
+  | suc n => c-node A (CTree A n) (CTree A n)
 
 -- 6. Определите тип Tree A n бинарных деревьев высоты не больше n,
 --    которые хранят элементы только во внутренних узлах, но не в листьях
 --    Высота листа равна 0
 
-\data Tree (A : \Type) (n : Nat)
+\data Tree (A : \Type) (n : Nat) \elim n
+  | 0 => leaf
+  | suc n \as n+ =>
+    node A {h-left : Nat} {h-right : Nat}
+         (p-left : T (h-left < n+)) (Tree A h-left)
+         (p-right : T (h-right < n+))  (Tree A h-right)
 
 -- Определите функцию, возвращающую высоту дерева
 
-\func height {A : \Type} (n : Nat) (t : Tree A n) : Fin (suc n) => {?}
+\func max (x : Nat) (y : Nat) : Nat => if (x < y) y x
+
+-- не понял, почему надо возвращать Fin и не получилось подогнать под него
+
+\func fmax {nx : Nat} {ny : Nat} (x : Fin nx) (y : Fin ny) : Fin (max nx ny) => \case nx < ny \with {
+  | true => y
+  | false => x
+}
+
+\func height {A : \Type} {n : Nat} (t : Tree A n) : Fin (suc n) \elim n, t
+  | 0, leaf => fzero
+  | suc n, node a p-left t1 p-right t2 => fsuc (fmax (height t1) (height t2))
 
 -- Optional task
 -- 7. Функции Fin n -> A соответствуют спискам элементов A длины n
@@ -68,7 +120,14 @@
 
 -- 9. Определите факториал через Nat-rec
 
+\func fac (n : Nat) : Nat => Nat-rec Nat 1 (\lam num acc => suc num * acc) n
+
+\func t9 : fac 3 = 6 => idp -- проверочка
+
 -- 10. Докажите ассоциативность сложения для натуральных чисел через Nat-elim
+
+\func t10 (x y z : Nat) : x + (y + z) = (x + y) + z =>
+  Nat-elim (\lam z => x + (y + z) = (x + y) + z) idp (\lam _ proof => pmap suc proof) z
 
 -- 11. Определите рекурсор и элиминатор для D
 
@@ -76,6 +135,21 @@
   | con1 Nat
   | con2 D D
   | con3 (Nat -> D)
+
+\func D-elim (P : D -> \Type)
+             (u : \Pi (n : Nat) -> P (con1 n))
+             (v : \Pi (d1 d2 : D) -> P d1 -> P d2 -> P (con2 d1 d2))
+             (w : \Pi (f : Nat -> D) -> (\Pi (n : Nat) -> P (f n)) -> P (con3 f))
+             (d : D) : P d \elim d
+  | con1 n => u n
+  | con2 d1 d2 => v d1 d2 (D-elim P u v w d1) (D-elim P u v w d2)
+  | con3 f => w f (\lam (n : Nat) => D-elim P u v w (f n))
+
+\func D-rec (P : \Type)
+            (u : Nat -> P)
+            (v : D -> D -> P -> P -> P)
+            (w : (Nat -> D) -> (Nat -> P) -> P)
+            (d : D) : P => D-elim (\lam _ => P) u v w d
 
 {- Для проверки, что определения D-elim и D-rec верные, вы можете попробовать определить foo через D-rec
 \func foo (d : D) : Nat
@@ -88,11 +162,14 @@
 
 -- 13. Докажите pmap при помощи паттерн матчинга с idp
 
-\func pmap {A B : \Type} (f : A -> B) {a a' : A} (p : a = a') : f a = f a' => {?}
+\func pmap {A B : \Type} (f : A -> B) {a a' : A} (p : a = a') : f a = f a' \elim p
+  | idp => idp
 
 -- 14. Докажите pmap2 при помощи паттерн матчинга с idp
 
-\func pmap2 {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' => {?}
+\func pmap2 {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' \elim p, q
+  | idp, idp => idp
+
 
 -- Optional task
 -- 15. У оператора J есть другая форма, которую мы будем называть Jalt
