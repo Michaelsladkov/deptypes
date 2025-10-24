@@ -1,7 +1,7 @@
 \import Data.Bool
 \import Logic
 \import Paths
-\import lect05 (funExt, sigmaExt, unext)
+\import lect05 (funExt, unext)
 
 
 -- 1. Определите функцию swap и докажите, что swap (swap p) = p
@@ -23,15 +23,11 @@
 
 \open Nat(*)
 
-\func fac (n : Nat) : Nat
+\func fac (_ : Nat) : Nat
   | 0 => 1
   | suc n => suc n * fac n
 
-\func TN (n : Nat) : \Type
-  | 0 => Empty
-  | suc n => \Sigma
-
-\func fac/=suc (p : fac = suc) : Empty => transport TN p 0
+\func fac/=suc (p : fac = suc) : Empty => \case (unext p) 3 \with {}
 
 
 -- 4. Докажите, что left = right, не используя transport, coe и паттерн матчинг с idp
@@ -43,34 +39,33 @@
 --    (меты тоже нельзя)
 
 \func pairEq {A B : \Type} {a a' : A} {b b' : B}
-             (p : a = a') (q : b = b') : (a, b) = (a', b') => sigmaExt p q
+             (p : a = a') (q : b = b') : (a, b) = (a', b') => \lam i => (p i, q i)
 
 
 -- 6. Докажите, что если p = p', то p.1 = p'.1, не используя transport, coe и паттерн матчинг с idp
 
 \func projEq {A : \Type} (B : A -> \Type) {p p' : \Sigma (x : A) (B x)}
-             (t : p = p') : p.1 = p'.1 => pmap (\lam p => p.1) t
+             (t : p = p') : p.1 = p'.1 => \lam i => (t i).1
 
 
 -- 7. Докажите pmap2, не используя transport, coe и паттерн матчинг с idp
 
 \func pmap2' {A B C : \Type} (f : A -> B -> C) {a a' : A}
-             (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' => (pmap f p) -- кажется надо несколько применений pmap скомбинировать, пока не понял как
+             (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' => \lam i => f (p i) (q i)
 
 
 -- 8. Мы видели как определить transport через coe. Определите частный случай coe через transport
 
-\func coe0 (A : I -> \Type) (a : A left) : A right => {?}
-
+\func coe0 (A : I -> \Type) (a : A left) : A right => transport A left=right a
 
 -- 9. Докажите, что transport' от константной функции возвращает свой последний аргумент
 
 \func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' \elim p
   | idp => b
 
-\func transport'_const {A B : \Type} {a a' : A} (p : a = a') (b : B) : transport' (\lam _ => B) p b = b => {?}
-
+\func transport'_const {A B : \Type} {a a' : A} (p : a = a') (b : B) : transport' (\lam _ => B) p b = b \elim p
+  | idp => idp
 
 -- 10. Определите функцию B right -> B left
 
-\func Itr' {B : I -> \Type} (b : B right) : B left => {?}
+\func Itr' {B : I -> \Type} (b : B right) : B left => transport B (inv left=right) b
