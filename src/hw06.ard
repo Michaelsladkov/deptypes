@@ -1,38 +1,83 @@
+\import Data.Bool
+\import Data.Maybe
 \import Logic
+\import hw01 (gcd)
 \import lect06
 
 -- 1. Определите функцию swap несколькими способами
 
 -- При помощи \cowith и доступа к полям
-\func swap {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap {A B : \Type} (p : Pair A B) : Pair B A \cowith
+  | fst_ => p.snd_
+  | snd_ => p.fst_
 
 -- При помощи \new и паттерн матчинга
-\func swap' {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap' {A B : \Type} (_ : Pair A B) : Pair B A
+  | (a, b) => \new Pair {
+    | fst_ => b
+    | snd_ => a
+  }
 
 -- При помощи \new и доступа к полям
-\func swap'' {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap'' {A B : \Type} (p : Pair A B) : Pair B A => \new Pair {
+  | fst_ => p.snd_
+  | snd_ => p.fst_
+}
 
 -- 2. Докажите, что swap (swap p) = p
 
-\func swap-involutive {A B : \Type} (p : Pair A B) : swap (swap p) = p => {?}
+\func swap-involutive {A B : \Type} (p : Pair A B) : swap (swap p) = p => idp
 
 -- 3. Докажите, что тип PosNat 0 пустой, а тип PosNat 1 нет
 
-\func zero-isNotPos (p : PosNat 0) : Empty => {?}
+\func zero-isNotPos (p : PosNat 0) : Empty => \case p.p \with {}
 
-\func one-isPos : PosNat 1 => {?}
+\func one-isPos : PosNat 1 => \new PosNat {
+  | n => 1
+  | p => ()
+}
 
 -- 4. Определите \record, состоящий из пар взаимно простых натуральных чисел
 --    Определите тип, состоящий из натуральных чисел, взаимно простых с 60
 
+\record MutuallyPrime (x : Nat) (y : Nat) (p : gcd x y = 1)
+  -- test
+\func three-four-mutuallyPrime : MutuallyPrime 3 4 => \new MutuallyPrime {
+  | p => idp
+}
+-- Correctly fails
+-- \func three-six-mutuallyPrime : MutuallyPrime 3 6 => \new MutuallyPrime {
+--   | p => idp
+-- }
+
+\func primeWith60 => \Sigma (x : Nat) (p : MutuallyPrime x 60)
+
 -- 5. Закончите определение класса монад
 --    Этот класс должен содержать все монадные законы и реализовывать все поля из класса функторов
 
-\class Monad \extends Functor
+\class Monad \extends Functor {
   | return {A : \Type} : A -> F A
   | \infixl 2 >>= {A B : \Type} : F A -> (A -> F B) -> F B
-
+  | law1 {A B : \Type} (a : A) (f : A -> F B) : return a >>= f = f a
+  | law2 {A : \Type} (m : F A) : m >>= return = m
+  | law3 {A B : \Type} (m : F A) (k : A -> F A) (h : A -> F B) : m >>= (\lam x => k x >>= h) = (m >>= k) >>= h
+  | fmap f as => as >>= (\lam x => return (f x))
+  | fmap-id {A : \Type} (x : F A) => idp
+  | fmap-comp {A B C : \Type} (f : B -> C) (g : A -> B) (x : F A) => idp
+}
 -- 6. Определите \instance Monad для Maybe
+
+\instance MonadMaybe : Monad Maybe
+  | return {A : \Type} (a : A) => just a
+  | >>= {A B : \Type} (a : Maybe A) (f : A -> Maybe B) : Maybe B \elim a {
+    | nothing => nothing
+    | just a => f a
+  }
+  | law1 _ _ => idp
+  | law2 m => {?}
+  | law3 m k h => {?}
+  | fmap-comp => idp
+
 
 -- 7. Определите \instance Monad для State и State'
 
