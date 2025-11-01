@@ -102,5 +102,44 @@
 \record State (S A : \Type)
   | state : S -> \Sigma S A
 
+\instance MonadState (S : \Type) : Monad (State S)
+  | return {A : \Type} (a : A) => returnImpl a
+  | >>= {A B : \Type} (ma : State S A) (f : A -> State S B) : State S B => \new State {
+    | state => \lam s => \let
+      | m' : \Sigma S A => ma.state s
+      | b : State S B => f m'.2
+      \in b.state m'.1
+  }
+  | law1 {A B : \Type} (_ : A) (_ : A -> State S B) => idp
+  | law2 {A : \Type} (m : State S A) : m >>= returnImpl = m => idp
+  | law3 {A B C : \Type}
+         (m : State S A)
+         (k : A -> State S B)
+         (h : B -> State S C) : m >>= (\lam x => k x >>= h) = (m >>= k) >>= h => idp
+\where {
+  \func returnImpl {S : \Type} {A : \Type} (a : A) => \new State {
+    | A => A
+    | state => \lam s => (s, a)
+    | S => S
+  }
+}
+
 \data State' (S A : \Type)
   | state' (S -> \Sigma S A)
+
+\instance MonadState' (S : \Type) : Monad (State' S)
+  | return {A : \Type} (a : A) => returnImpl a
+  | >>= {A B : \Type} (ma : State' S A) (f : A -> State' S B) : State' S B \elim ma {
+    | state' maf => \let
+      | m' (s : S) : \Sigma S A => maf s
+      | b (s : S) : State' S B => f (maf s).2
+    \in state' \lam s => \case b s \with {
+        | state' mbf => mbf (m' s).1
+      }
+  }
+  | law1 {A B : \Type} (_ : A) (_ : A -> State' S B) => {?}
+  | law2 => {?}
+  | law3 => {?}
+\where {
+  \func returnImpl {S : \Type} {A : \Type} (a : A) => state' \lam (s : S) => (s, a)
+}
