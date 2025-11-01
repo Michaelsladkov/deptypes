@@ -82,9 +82,19 @@
     | nothing => nothing
     | just a => f a
   }
-  | law1 _ _ => idp
-  | law2 m => {?}
-  | law3 m k h => {?}
+  | law1 {A B : \Type} (_ : A) (_ : A -> Maybe B) => idp
+  | law2 {A : \Type} (m : Maybe A) : m >>= just = m \elim m {
+    | nothing => idp
+    | just a => idp
+  }
+  | law3 {A B C : \Type}
+         (m : Maybe A)
+         (k : A -> Maybe B)
+         (h : B -> Maybe C) : m >>= (\lam x => k x >>= h) = (m >>= k) >>= h \elim m {
+    | nothing => idp
+    | just a => idp
+  }
+
 
 
 -- 7. Определите \instance Monad для State и State'
