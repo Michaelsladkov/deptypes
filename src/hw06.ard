@@ -1,7 +1,10 @@
 \import Data.Bool
 \import Data.Maybe
 \import Logic
+\import Paths
+\import Topology.CoverSpace.Locale
 \import hw01 (gcd)
+\import lect05 (funExt)
 \import lect06
 
 -- 1. Определите функцию swap несколькими способами
@@ -60,11 +63,17 @@
   | \infixl 2 >>= {A B : \Type} : F A -> (A -> F B) -> F B
   | law1 {A B : \Type} (a : A) (f : A -> F B) : return a >>= f = f a
   | law2 {A : \Type} (m : F A) : m >>= return = m
-  | law3 {A B : \Type} (m : F A) (k : A -> F A) (h : A -> F B) : m >>= (\lam x => k x >>= h) = (m >>= k) >>= h
+  | law3 {A B C : \Type} (m : F A) (k : A -> F B) (h : B -> F C) : m >>= (\lam x => k x >>= h) = (m >>= k) >>= h
   | fmap f as => as >>= (\lam x => return (f x))
-  | fmap-id {A : \Type} (x : F A) => idp
-  | fmap-comp {A B C : \Type} (f : B -> C) (g : A -> B) (x : F A) => idp
+  | fmap-id {A : \Type} (x : F A) => law2 x
+  | fmap-comp {A B C : \Type} (f : B -> C) (g : A -> B) (x : F A) => \let
+    | rf => \lam x => return (f x)
+    | rg => \lam x => return (g x)
+    | h2 (a : A) : return (f (g a)) = return (g a) >>= rf => inv (law1 (g a) rf *> idp)
+    | h1 : x >>= (\lam b => return (f (g b))) = x >>= (\lam b => return (g b) >>= rf) => pmap (\lam ff => x >>= ff) (funExt (\lam b => h2 b))
+    \in h1 *> law3 x rg rf
 }
+
 -- 6. Определите \instance Monad для Maybe
 
 \instance MonadMaybe : Monad Maybe
@@ -76,7 +85,6 @@
   | law1 _ _ => idp
   | law2 m => {?}
   | law3 m k h => {?}
-  | fmap-comp => idp
 
 
 -- 7. Определите \instance Monad для State и State'
