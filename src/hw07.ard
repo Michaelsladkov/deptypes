@@ -1,24 +1,57 @@
 \import Data.Bool
 \import Data.List (List, length)
 \import Logic
+\import Meta (cases)
+\import Paths (transport)
+\import hw04
 \import lect07
 \open Nat(+,*)
 
 
 -- 1. Определите предикат принадлежности элемента списку
 
-\data In {A : \Type} (a : A) (xs : List A)
+\data In {A : \Type} (a : A) (xs : List A) \elim xs
+  | List.:: x xs => inFound (x = a)
+  | List.:: x xs => inContinue (In a xs)
 
 
 -- Optional:
 -- 2. Докажите эквивалентность четырех различных определений LessOrEq: lessOrEq, lessOrEq', LessOrEq и LessOrEq'
+\func e1 (n m : Nat) (p : lessOrEq' n m) : lessOrEq n m \elim n, m, p
+  | 0, 0, p => (0, idp)
+  | 0, suc m, p => (suc m, idp)
+  | suc n, suc m, p => \case e1 n m p \with {
+    | (k, p) => (k, pmap suc p)
+  }
+
+\func unsuc {x y : Nat} (p : suc x = suc y) : x = y => path (\lam i => (\lam (x : Nat) => \case x \return Nat \with {
+  | zero => zero
+  | suc x => x
+}) (p i))
+
+\func e2 (n m : Nat) (p : lessOrEq n m) : LessOrEq n m \elim n, m, p
+  | 0, _, _ => zero<=_
+  | suc n, 0, (k, p) => \case p \with {}
+  | suc n, suc m, (k, p) => suc<=suc (e2 n m (k, unsuc p))
+
+\func e3 (n m : Nat) (p : lessOrEq n m) : LessOrEq' n m  \elim n, m, p
+  | 0, 0, _ => <=-refl idp
+  | suc n, 0, (k, p) => \case p
+  | suc n, suc m, (k, p) => {?}
+  | 0, suc m, p => <=-step (helper m) \where {
+    \func helper (x : Nat) : LessOrEq' 0 x \elim x
+      | 0 => <=-refl idp
+      | suc x => <=-step (helper x)
+  }
 
 
 -- 3. Определите рефлексивное транзитивное замыкание отношения
 --    То есть ReflTransClosure R -- это минимальное рефлексивное и транзитивное отношение, содержащее R
 
 \data ReflTransClosure {A : \Type} (R : A -> A -> \Type) (x y : A)
-
+  | Straight (R x y)
+  | Relfecsive (x = y)
+  | Transitive (z : A) (ReflTransClosure R x z) (ReflTransClosure R z y)
 
 -- 4. Докажите, что если R уже рефлексивно и транзитивно, то ReflTransClosure R эквивалентно R
 
@@ -28,19 +61,35 @@
                            (refl : \Pi (x : A) -> R x x)
                            (trans : \Pi (x y z : A) -> R x y -> R y z -> R x z)
   : \Pi (x y : A) -> R x y <-> ReflTransClosure R x y
-  => {?}
+  => \lam (x y : A) => (straight, reverse) \where {
+  \func straight {x y : A} (p : R x y) : ReflTransClosure R x y => Straight p
+  \func reverse {x y : A} (p : ReflTransClosure R x y) : R x y \elim x, y, p
+    | x, y, Straight r => r
+    | x, y, Relfecsive p => transport (R x __) p (refl x)
+    | x, y, Transitive z p1 p2 => trans x z y (reverse p1) (reverse p2)
+}
 
 
 -- 5. Определите предикат Sublist xs ys на списках, означающий "список xs является подсписком ys"
-
+\data Sublist {A : \Type} (xs ys : List A) \elim xs, ys
+  | List.nil, _ => subListEmpty
+  | List.:: x xs, List.:: y ys => subListElem (x = y) (Sublist xs ys)
+  | xs, List.:: y ys => subListNext (Sublist xs ys)
 
 -- 6. Докажите, что Sublist (filter p xs) xs для любых p и xs
-
+\func filterIsSublist {A : \Type} (xs : List A) (p : A -> Bool) : Sublist (filter p xs) xs \elim xs
+  | List.nil => subListEmpty
+  | List.:: x xs' => cases (p x) \with {
+    | false => subListNext (filterIsSublist xs' p)
+    | true => subListElem idp (filterIsSublist xs' p)
+  }
 
 -- 7. Определите filter через if, а не через \case
 --    Докажите для этой версии filter лемму filter-lem
 
-\func filter' {A : \Type} (p : A -> Bool) (xs : List A) : List A => {?}
+\func filter' {A : \Type} (p : A -> Bool) (xs : List A) : List A \elim xs
+  | List.nil => List.nil
+  | x List.:: xs => if (p x) (x List.:: filter' p xs) (filter' p xs)
 
 \func filter-lem {A : \Type} (p : A -> Bool) (xs : List A) : LessOrEq (length (filter' p xs)) (length xs) => {?}
 
