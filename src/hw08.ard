@@ -1,5 +1,11 @@
+\import Combinatorics.Factorial
 \import Data.Bool
 \import Data.List \hiding (headDef)
+\import Function.Meta
+\import Logic (Empty, absurd)
+\import Meta
+\import Paths
+\import Paths.Meta
 \import hw07
 \import lect08
 \import Order.LinearOrder
@@ -10,7 +16,94 @@
 --    * Все элементы filter p xs удовлетворяют предикату p
 --    * Любой подсписок xs с тем же свойством является подсписком filter p xs
 
+\func filter {A : \Type} (p : A -> Bool) (xs : List A) : List A \elim xs
+  | nil => nil
+  | x :: xs => \case p x \with {
+    | true => x :: filter p xs
+    | false => filter p xs
+  }
+
+\data Sublist {A : \Type} (xs ys : List A) \elim xs, ys
+  | nil, _ => subListEmpty
+  | x :: xs, List.:: y ys => subListElem (x = y) (Sublist xs ys)
+  | xs, y :: ys => subListNext (Sublist xs ys)
+
+\func filter-is-sublist {A : \Type} (xs : List A) (p : A -> Bool) : Sublist (filter p xs) xs \elim xs
+  | nil => subListEmpty
+  | x :: xs' => cases (p x) \with {
+    | false => subListNext (filter-is-sublist xs' p)
+    | true => subListElem idp (filter-is-sublist xs' p)
+  }
+
+\data AllElementsMatch {A : \Type} (p : A -> Bool) (xs : List A) \elim xs
+  | nil => nothingMatches
+  | x :: xs => elemMatch (p x = true) (AllElementsMatch p xs)
+
+\func filtered-match {A : \Type} (p : A -> Bool) (xs : List A) : AllElementsMatch p (filter p xs) \elim xs
+  | nil => nothingMatches
+  | x :: xs => cases ((p x) arg addPath) \with {
+    | false, p1 => filtered-match p xs
+    | true, p1 => elemMatch p1 (filtered-match p xs)
+  }
+
+\func matching-is-sublist-of-filtered {A : \Type}
+                                      (p : A -> Bool)
+                                      (xsSource : List A)
+                                      (xsSubj : List A)
+                                      (sub : Sublist xsSubj xsSource)
+                                      (m : AllElementsMatch p xsSubj)
+                       : Sublist xsSubj (filter p xsSource) \elim xsSource, xsSubj, sub, m
+  | xsSource, nil, subListEmpty, nothingMatches => subListEmpty
+  | y :: xsSource, x :: xsSubj, subListElem p1 sub, elemMatch p2 m => cases ((p y) arg addPath) \with {
+    | false, p3 => \case inv p2 *> pmap p p1 *> p3
+    | true, p3 => subListElem p1 (matching-is-sublist-of-filtered p xsSource xsSubj sub m)
+  }
+  | y :: xsSource, nil, subListNext sub, nothingMatches => subListEmpty
+  | y :: xsSource, x :: xsSubj, subListNext sub, elemMatch p1 m => cases ((p y) arg addPath) \with {
+    | false, p2 => matching-is-sublist-of-filtered p xsSource (x :: xsSubj) sub (elemMatch p1 m)
+    | true, p2 => subListNext (matching-is-sublist-of-filtered p xsSource (x :: xsSubj) sub (elemMatch p1 m))
+  }
+
 -- 2. Докажите, что Perm l1 l2 тогда и только тогда, когда Insertion.sort l1 = Insertion.sort l2
+\func perf-sort {A : Dec} (l1 l2 : List A) : Perm l1 l2 <-> (Insertion.sort l1 = Insertion.sort l2) => (forward, reverse)
+\func forward {A : Dec} {l1 l2 : List A} (perm : Perm l1 l2) : Insertion.sort l1 = Insertion.sort l2 \elim l1, l2, perm
+  | nil, nil, perm-nil => idp
+  | x :: l1, y :: l2, perm-cons p perm => rewrite p $ pmap (Insertion.sort.insert y) (forward perm)
+  | x :: (x' :: l1), y :: (y' :: l2), perm-swap p p1 p2 => rewrite (p, p1, p2) $ Insertion.sort.insert-comm y' y (Insertion.sort-sorted _)
+  | l1, l2, perm-trans perm1 perm2 => rewrite (forward perm1, forward perm2) idp
+
+\func helper1 {A : \Type} (l : List A) : \Type \elim l
+  | nil => Empty
+  | _ => \Sigma
+
+\func helper2 {A : \Type} {xs ys : List A} (p : Perm xs ys) : Perm ys xs \elim xs, ys, p
+  | nil, nil, perm-nil => perm-nil
+  | x :: xs, y :: ys, perm-cons p p1 => perm-cons (inv p) (helper2 p1)
+  | x :: (x' :: xs), y :: (y' :: ys), perm-swap p p1 p2 => perm-swap (inv p1) (inv p) (inv p2)
+  | _, _,  perm-trans p1 p2 => perm-trans (helper2 p2) (helper2 p1)
+
+\func helper3 {A : Dec}(xs : List A) (a : A) : helper1 (Insertion.sort.insert a xs)
+  | nil, a => ()
+  | x :: xs, a => mcases ()
+
+\func reverse {A : Dec} (l1 l2 : List A) {p : Insertion.sort l1 = Insertion.sort l2} : Perm l1 l2 \elim l1, l2
+  | nil, nil => perm-nil
+  | nil, a :: l2 => absurd (transport
+      helper1
+      (inv p)
+      (helper3 (Insertion.sort l2) a))
+  | a :: l1, nil => absurd (transport
+      helper1
+      p
+      (helper3 (Insertion.sort l1) a))
+  | a :: l1, b :: l2 => \let
+    | p1 => helper2 $ perm-cons idp (Insertion.sort-perm l2)
+    | p2 => helper2 $ Insertion.sort-perm.insert-perm b (Insertion.sort l2)
+    | p3 => rewrite p $ Insertion.sort-perm.insert-perm a (Insertion.sort l1)
+    | p4 => perm-cons (idp : a = a) (Insertion.sort-perm l1)
+  \in  perm-trans (perm-trans (perm-trans p4 p3) p2) p1
+
+
 
 -- 3. Докажите, что спецификация "результат является перестановкой входа и отсортирован" является полной для функции sort
 
@@ -19,6 +112,16 @@
 
 -- 4. Определите факториал через хвостовую рекурсию
 --    Докажите, что он равен обычному определению факториала
+\func tailrec-fac (n : Nat) : Nat => helper n 1
+  \where {
+    \func helper (n i : Nat) : Nat \elim n
+      | 0 => i
+      | Nat.suc n => helper n (i Nat.* suc n)
+  }
+
+\func tailrec-proof (n : Nat) : tailrec-fac n = fac n \elim n
+  | 0 => idp
+  | suc n => {?}
 
 -- 5. Определите функцию, которая проверяет правильность скобочной последовательности
 --    Докажите ее корректность
