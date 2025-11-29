@@ -1,36 +1,77 @@
 \import Data.Maybe
-\import lect07 (Decide)
+\import Function.Meta
+\import Meta
+\import Paths
+\import Paths.Meta
+\import hw07
+\import lect07 (Decide, no, yes)
 \import lect09
 
 
 -- 1. Докажите, что оператор >>= ассоциативен для Monad Term
 
 \func Term->>=-assoc {A B C : \Set} (t : Term A) (k : A -> Term B) (l : B -> Term C)
-  : t >>= k >>= l = {Term C} t >>= (\lam a => k a >>= l) => {?}
+  : t >>= k >>= l = {Term C} t >>= (\lam a => k a >>= l) \elim t
+  | unit => idp
+  | var v => idp
+  | app t1 t2 => pmap2 app (Term->>=-assoc t1 k l) (Term->>=-assoc t2 k l)
+  | lam t => pmap lam (Term->>=-assoc t (liftM k) (liftM l) *> pmap (t >>=) (unfold liftM helper)) \where {
+  \func helper : (\lam a => liftM k a >>= liftM l) = liftM (\lam a => k a >>= l) => ext {?}
+}
 
 
 -- 2. Определите отношение многошаговой редукции на Term
 
-\func Red {V : \Set} (t s : Term V) : \Type => {?}
+\func Red {V : \Set} (t s : Term V) : \Type => ReflTransClosure Red1 t s
 
 
 -- 3. Стратегия редукции -- это функция, которая каждому терму сопоставляет либо некоторый терм,
 --    к которому он редуцируется за 1 шаг, либо доказательство, что таких термов нет
 --    Определите любую стратегию редукции
 
-\func strategy {V : \Set} (t : Term V) : Decide (\Sigma (s : Term V) (Red1 t s)) => {?}
+\func strategy {V : \Set} (t : Term V) : Decide (\Sigma (s : Term V) (Red1 t s)) \elim t
+  | unit => no (\lam x => \case x.2)
+  | var v => no (\lam x => \case x.2)
+  | lam t => \case strategy t \with {
+    | yes a => yes (lam a.1, red-lam a.2)
+    | no n => no \lam x => cases (x.1, x.2) \with {
+      | lam s, red-lam r => n (s, r)
+    }
+  }
+  | app st1 st2 => \case strategy st1, strategy st2 \with {
+    | _, yes a => yes (app st1 a.1, red-right idp a.2)
+    | yes a, no n => yes (app a.1 st2, red-left a.2 idp)
+    | no n1, no n2 => cases (st1 arg addPath) \with {
+      | lam t, _ => yes (t >>= maybe st2 var, beta t idp idp)
+      | unit, _ => no $ \case \elim __ \with {
+        | (s, beta f () p1)
+        | (app t t1, red-left () p)
+        | (app t t1, red-right p r) => n2 (t1, r)
+      }
+      | var v, _ => no $ \case \elim __ \with {
+        | (s, beta f () p1)
+        | (app t t1, red-left () p)
+        | (app t t1, red-right p r) => n2 (t1, r)
+      }
+      | app t t1, pp => no $ \case \elim __ \with {
+        | (s, beta f () p1)
+        | (app t' t1', red-left r p) => n1 (t', rewrite pp r)
+        | (app t' t1', red-right p r) => n2 (t1', r)
+      }
+    }
+  }
 
 
 -- 4. Докажите, что подтермы достижимого терма достижимы
 
-\func appAccLeft {V : \Set} {t s : Term V} (a : Acc Red1 (app t s)) : Acc Red1 t
-  => {?}
+\func appAccLeft {V : \Set} {t s : Term V} (a : Acc Red1 (app t s)) : Acc Red1 t \elim a
+  | acc x => acc \lam (t' : Term V) => \lam r => appAccLeft $ x (app t' s) (red-left r idp)
 
-\func appAccRight {V : \Set} {t s : Term V} (a : Acc Red1 (app t s)) : Acc Red1 s
-  => {?}
+\func appAccRight {V : \Set} {t s : Term V} (a : Acc Red1 (app t s)) : Acc Red1 s \elim a
+  | acc x => acc \lam (s' : Term V) => \lam r => appAccRight $ x (app t s') (red-right idp r)
 
-\func subLamAcc {V : \Set} {t : Term (Maybe V)} (a : Acc Red1 (lam t)) : Acc Red1 t
-  => {?}
+\func subLamAcc {V : \Set} {t : Term (Maybe V)} (a : Acc Red1 (lam t)) : Acc Red1 t \elim a
+  | acc x => acc \lam (t' : Term (Maybe V)) => \lam r => subLamAcc $ x (lam t') (red-lam r)
 
 
 -- 5. Докажите следующую обобщенную лемму о подстановке и выведите из нее обычную версию:
@@ -38,7 +79,11 @@
 
 \func substLem {U V : \Set} (ctx : U -> Type) (b : Term U) (B : Type) (h : hasType ctx b B)
                (ctx' : V -> Type) (a : U -> Term V) (h' : \Pi (u : U) -> hasType ctx' (a u) (ctx u))
-  : hasType ctx' (b >>= a) B => {?}
+  : hasType ctx' (b >>= a) B \elim b, B, h
+  | unit, Unit, unit-type => unit-type
+  | var v, B, var-type p => unfold ({?})
+  | app b b1, B, app-type T h1 h2 => {?}
+  | lam b, Arr B B1, lam-type h => {?}
 
 \func substLem1 => {?}
 
