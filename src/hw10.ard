@@ -10,7 +10,7 @@
 \import Paths.Meta
 \import hw07 (unsuc)
 \import lect05 (sigmaExt')
-\import lect07 (Decide)
+\import lect07 (Decide, no, yes)
 \import lect10
 
 
@@ -121,22 +121,118 @@
 
 -- 8. Докажите, что тип с разрешимым равенством является множеством
 
-\func Dec-isSet {A : \Type} (dec : \Pi (x y : A) -> Decide (x = y)) : isSet A => {?}
+\func Dec-isSet {A : \Type} (dec : \Pi (x y : A) -> Decide (x = y)) : isSet A => setLem h1 h2 h3 h4 \where {
+  \func f1 {x y : A} (d : Decide (x = y)) : \Type \elim d
+    | yes a => \Sigma
+    | no n => Empty
+
+  \func h1 => \lam x y => f1 (dec x y)
+
+  \func f2 {x y : A} (d : Decide (x = y)) : isProp (f1 d) \elim d
+    | yes a => Unit-isProp
+    | no n => Empty-isProp
+
+  \func h2 => \lam x y => f2 (dec x y)
+
+  \func f3 {x : A} (d : Decide (x = x)) : f1 d \elim d
+    | yes a => ()
+    | no n => absurd (n idp)
+
+  \func h3 => \lam x => f3 (dec x x)
+
+  \func f4 {x y : A} (d : Decide (x = y)) (p : f1 d) : x = y \elim d, p
+    | yes a, p => a
+
+  \func h4 => \lam (xy : \Sigma A A) => f4 (dec xy.1 xy.2)
+}
 
 
 -- 9. Если A и B являются множествами, то A `Or` B тоже является множеством
 
-\func or-isSet {A B : \Type} (p : isSet A) (q : isSet B) : isSet (Or A B) => {?}
+\func or-isSet {A B : \Type} (p : isSet A) (q : isSet B) : isSet (Or A B) => setLem h1 h2 h3 h4 \where {
+  \func f1 (x y : Or A B) : \Type \elim x, y
+    | inl x, inl y => x = y
+    | inl x, inr y => Empty
+    | inr x, inl y => Empty
+    | inr x, inr y => x = y
+
+  \func h1 => \lam x y => f1 x y
+
+  \func f2 (x y : Or A B) : isProp (f1 x y) \elim x, y
+    | inl x, inl y => p x y
+    | inl x, inr y => Empty-isProp
+    | inr x, inl y => Empty-isProp
+    | inr x, inr y => q x y
+
+  \func h2 => \lam x y => f2 x y
+
+  \func f3 (x : Or A B) : f1 x x \elim x
+    | inl a => idp
+    | inr b => idp
+
+  \func h3 => \lam x => f3 x
+
+  \func f4 (x y : Or A B) (p : f1 x y) : x = y \elim x, y, p
+    | inl x, inl y, p => pmap inl p
+    | inr x, inr y, p => pmap inr p
+
+  \func h4 => \lam {x} {y} => f4 x y
+}
 
 
 -- 10. Если B x является множеством, то \Pi (x : A) -> B x тоже является множеством
 
-\func pi-isSet {A : \Type} (B : A -> \Type) (p : \Pi (x : A) -> isSet (B x)) : isSet (\Pi (x : A) -> B x) => {?}
+\func pi-isSet {A : \Type} (B : A -> \Type) (p : \Pi (x : A) -> isSet (B x)) : isSet (\Pi (x : A) -> B x) => setLem h1 h2 h3 h4 \where {
+  \func f1 (x y : \Pi (x : A) -> B x) : \Type => \Pi (z : A) -> x z = y z
+
+  \func h1 => \lam x y => f1 x y
+
+  \func f2 (x y : \Pi (x : A) -> B x) : isProp (f1 x y) =>
+    \lam p' q' => ext \lam z => ((p z) (x z) (y z)) (p' z) (q' z)
+
+  \func h2 => \lam x y => f2 x y
+
+  \func f3 (x : \Pi (x : A) -> B x) : f1 x x => \lam _ => idp
+
+  \func h3 => \lam x => f3 x
+
+  \func f4 (x y : \Pi (x : A) -> B x) (p : f1 x y) : x = y => ext p
+
+  \func h4 => \lam {x} {y} => f4 x y
+}
 
 
 -- 11. Докажите, что если A является множеством, то List A также им является
 
-\func List-isSet {A : \Type} (pA : isSet A) : isSet (List A) => {?}
+\func List-isSet {A : \Type} (pA : isSet A) : isSet (List A) => setLem h1 h2 h3 h4 \where {
+  \func f1 (xs ys : List A) : \Type \elim xs, ys
+    | nil, nil => \Sigma
+    | nil, y :: ys => Empty
+    | x :: xs, nil => Empty
+    | x :: xs, y :: ys => \Sigma (x = y) (f1 xs ys)
+
+  \func h1 => \lam x y => f1 x y
+
+  \func f2 (xs ys : List A) : isProp (f1 xs ys) \elim xs, ys
+    | nil, nil => Unit-isProp
+    | nil, y :: ys => Empty-isProp
+    | x :: xs, nil => Empty-isProp
+    | x :: xs, y :: ys => Sigma-isProp (pA x y) (f2 xs ys)
+
+  \func h2 => \lam x y => f2 x y
+
+  \func f3 (xs : List A) : f1 xs xs \elim xs
+    | nil => ()
+    | x :: xs => (idp, f3 xs)
+
+  \func h3 => \lam x => f3 x
+
+  \func f4 (xs ys : List A) (p : f1 xs ys) : xs = ys \elim xs, ys, p
+    | nil, nil, p => idp
+    | x :: xs, y :: ys, p => rewrite p.1 (pmap (:: y) (f4 xs ys p.2))
+
+  \func h4 => \lam {x} {y} => f4 x y
+}
 
 
 -- Optional:
