@@ -1,6 +1,6 @@
 \import Data.Bool
 \import Function
-\import Logic (<->)
+\import Logic (<->, prop-isProp)
 \import Meta
 \import lect11
 
@@ -36,14 +36,14 @@
 \func Or-elim {A B : \Prop} (C : Or A B -> \Prop)
               (f : \Pi (x : A) -> C (inl x)) (g : \Pi (y : B) -> C (inr y))
               (p : A `Or` B) : C p => Or-rec f-helper g-helper p \where {
-    \func g-helper (b : B) : C p => transport g {?} b
-    \func f-helper (a : A) : C p => {?}
+    \func g-helper (b : B) : C p => transport C (prop-isProp (inr b) p) (g b)
+    \func f-helper (a : A) : C p =>  transport C (prop-isProp (inl a) p) (f a)
 }
 
 
 -- 4. Докажите, что тип утверждений является множеством
 
-\func prop-isSet : isSet \Prop => \lam x y x1 y1 => {?}
+\func prop-isSet : isSet \Prop => \lam _ _ => prop-isProp
 
 
 -- 5. Докажите, что функции Prop1-to-Prop2 и Prop2-to-Prop1 взаимно обратны и, как следствие, что Prop1 = Prop2
