@@ -1,5 +1,6 @@
 \import Function (o)
 \import Logic
+\import Paths
 \import lect12 \hiding (Int', pos, neg)
 
 -- 1. Определите функцию negPred : Int -> Int такую, что negPred x = x, если x > 0, и negPred x = x - 1, если x <= 0
@@ -67,7 +68,12 @@
 --    Докажите, что если f и g сюръективны, то g o f также сюръективна
 --    Докажите, что если g o f сюръективна, то g также сюръективна
 
-\func o-sur {A B C : \Type} (f : A -> B) (g : B -> C) (p : isSurj f) (q : isSurj g) : isSurj (g o f) => {?}
+\func o-sur {A B C : \Type} (f : A -> B) (g : B -> C) (p : isSurj f) (q : isSurj g) : isSurj (g o f) =>
+  \lam b => \case q b \with {
+    | inP a => \case p a.1 \with {
+      | inP a1 => inP (a1.1, {?})
+    }
+  }
 
 \func o-sur' {A B C : \Type} (f : A -> B) (g : B -> C) (p : isSurj (g o f)) : isSurj g => {?}
 
